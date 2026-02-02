@@ -1,0 +1,28 @@
+# Django
+django>=6.0.1
+
+# FAISS Vector Database
+faiss-cpu>=1.7.4
+
+# LangChain (optional, for future enhancements)
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langchain-google-genai>=0.0.6
+
+# Sentence Transformers (for local embeddings)
+sentence-transformers>=2.3.1
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# Document Processing
+PyPDF2>=3.0.1
+python-docx>=1.1.0
+
+# LLM Providers
+openai>=1.10.0
+google-generativeai>=0.3.2
+anthropic>=0.18.0
+
+# NumPy (required by FAISS)
+numpy>=1.24.0

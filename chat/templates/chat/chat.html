@@ -1,0 +1,137 @@
+{% extends "chat/base.html" %}
+
+{% block title %}Chat - AI Chat with RAG{% endblock %}
+
+{% block content %}
+<div class="container chat-container">
+    <div class="row">
+        <!-- Chat Area -->
+        <div class="col-lg-8">
+            <div class="card chat-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-chat-dots"></i> Chat
+                    </h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-info" id="indexStatusBadge">
+                            <i class="bi bi-database"></i> 
+                            <span id="vectorCount">{{ index_status.vector_count|default:0 }}</span> vectors
+                        </span>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="newChat()" title="New Chat">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body chat-messages" id="chatMessages">
+                    {% if conversation %}
+                        {% for message in conversation %}
+                            <div class="message message-{{ message.role }}">
+                                <div class="message-header">
+                                    <strong>{{ message.role|title }}:</strong>
+                                    <small class="text-muted">{{ message.created_at|date:"H:i" }}</small>
+                                </div>
+                                <div class="message-content">{{ message.content|linebreaks }}</div>
+                                {% if message.sources %}
+                                    <div class="message-sources">
+                                        <small class="text-muted">
+                                            <i class="bi bi-file-text"></i> Sources: 
+                                            {% for source in message.sources %}
+                                                {{ source.file_name }}{% if not forloop.last %}, {% endif %}
+                                            {% endfor %}
+                                        </small>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state text-center py-5">
+                            <i class="bi bi-chat-square-text display-4 text-muted"></i>
+                            <p class="text-muted mt-3">Start a conversation by asking a question!</p>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <form id="chatForm" class="chat-form">
+                        <div class="input-group">
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                id="messageInput" 
+                                placeholder="Type your question..." 
+                                autocomplete="off"
+                                {% if not index_status.is_ready %}disabled{% endif %}
+                            >
+                            <button class="btn btn-primary" type="submit" id="sendButton" {% if not index_status.is_ready %}disabled{% endif %}>
+                                <i class="bi bi-send"></i>
+                            </button>
+                        </div>
+                        {% if not index_status.is_ready %}
+                            <div class="alert alert-warning mt-2 mb-0">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                No documents indexed. Please run <code>python manage.py index_documents</code> first.
+                            </div>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- API Keys Status -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-key"></i> API Keys Status</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="bi bi-{{ api_keys_configured.openai|yesno:'check-circle-fill,x-circle-fill' }} text-{{ api_keys_configured.openai|yesno:'success,danger' }}"></i>
+                            OpenAI: {{ api_keys_configured.openai|yesno:"Configured,Not Configured" }}
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-{{ api_keys_configured.gemini|yesno:'check-circle-fill,x-circle-fill' }} text-{{ api_keys_configured.gemini|yesno:'success,danger' }}"></i>
+                            Gemini: {{ api_keys_configured.gemini|yesno:"Configured,Not Configured" }}
+                        </li>
+                        <li>
+                            <i class="bi bi-{{ api_keys_configured.anthropic|yesno:'check-circle-fill,x-circle-fill' }} text-{{ api_keys_configured.anthropic|yesno:'success,danger' }}"></i>
+                            Anthropic: {{ api_keys_configured.anthropic|yesno:"Configured,Not Configured" }}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Session Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> Session Info</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Session ID:</strong></p>
+                    <code class="d-block mb-3">{{ session_id }}</code>
+                    <p class="mb-1"><strong>Messages:</strong> {{ conversation|length }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3 mb-0">Generating response...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Set session ID
+const sessionId = '{{ session_id }}';
+</script>
+{% endblock %}

@@ -1,0 +1,169 @@
+{% extends "chat/base.html" %}
+
+{% block title %}Settings - AI Chat with RAG{% endblock %}
+
+{% block content %}
+<div class="container settings-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> RAG Configuration</h5>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Document Configuration -->
+                        <h6 class="mt-4 mb-3">Document Configuration</h6>
+                        <div class="mb-3">
+                            <label for="rag_folder_name" class="form-label">Documents Folder Name</label>
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                id="rag_folder_name" 
+                                name="rag_folder_name" 
+                                value="{{ config.rag_folder_name|default:'default' }}"
+                                placeholder="default"
+                                required
+                            >
+                            <div class="form-text">
+                                The name of the folder containing documents to index. 
+                                Documents should be placed in <code>data/documents/[folder_name]/</code>
+                            </div>
+                        </div>
+                        
+                        <!-- Provider Configuration -->
+                        <h6 class="mt-4 mb-3">Provider Configuration</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="embedding_provider" class="form-label">Embedding Provider</label>
+                                <select class="form-select" id="embedding_provider" name="embedding_provider" required>
+                                    <option value="openai" {% if config.embedding_provider == 'openai' %}selected{% endif %}>OpenAI</option>
+                                    <option value="gemini" {% if config.embedding_provider == 'gemini' %}selected{% endif %}>Google Gemini</option>
+                                    <option value="huggingface" {% if config.embedding_provider == 'huggingface' %}selected{% endif %}>HuggingFace (Local)</option>
+                                </select>
+                                <div class="form-text">
+                                    Provider for generating text embeddings.
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="llm_provider" class="form-label">LLM Provider</label>
+                                <select class="form-select" id="llm_provider" name="llm_provider" required>
+                                    <option value="openai" {% if config.llm_provider == 'openai' %}selected{% endif %}>OpenAI</option>
+                                    <option value="gemini" {% if config.llm_provider == 'gemini' %}selected{% endif %}>Google Gemini</option>
+                                    <option value="anthropic" {% if config.llm_provider == 'anthropic' %}selected{% endif %}>Anthropic</option>
+                                </select>
+                                <div class="form-text">
+                                    Provider for generating AI responses.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Chunking Configuration -->
+                        <h6 class="mt-4 mb-3">Chunking Configuration</h6>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="chunk_size" class="form-label">Chunk Size</label>
+                                <input 
+                                    type="number" 
+                                    class="form-control" 
+                                    id="chunk_size" 
+                                    name="chunk_size" 
+                                    value="{{ config.chunk_size|default:1000 }}"
+                                    min="100"
+                                    max="10000"
+                                    required
+                                >
+                                <div class="form-text">Characters per chunk</div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="chunk_overlap" class="form-label">Chunk Overlap</label>
+                                <input 
+                                    type="number" 
+                                    class="form-control" 
+                                    id="chunk_overlap" 
+                                    name="chunk_overlap" 
+                                    value="{{ config.chunk_overlap|default:200 }}"
+                                    min="0"
+                                    max="1000"
+                                    required
+                                >
+                                <div class="form-text">Overlap between chunks</div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="top_k" class="form-label">Top K Results</label>
+                                <input 
+                                    type="number" 
+                                    class="form-control" 
+                                    id="top_k" 
+                                    name="top_k" 
+                                    value="{{ config.top_k|default:5 }}"
+                                    min="1"
+                                    max="20"
+                                    required
+                                >
+                                <div class="form-text">Chunks to retrieve</div>
+                            </div>
+                        </div>
+                        
+                        <!-- API Keys Status -->
+                        <h6 class="mt-4 mb-3">API Keys Status</h6>
+                        <div class="alert alert-info">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-{{ api_keys_configured.openai|yesno:'check-circle-fill,x-circle-fill' }} text-{{ api_keys_configured.openai|yesno:'success,danger' }} me-2"></i>
+                                <span>OpenAI: {{ api_keys_configured.openai|yesno:"Configured,Not Configured" }}</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-{{ api_keys_configured.gemini|yesno:'check-circle-fill,x-circle-fill' }} text-{{ api_keys_configured.gemini|yesno:'success,danger' }} me-2"></i>
+                                <span>Gemini: {{ api_keys_configured.gemini|yesno:"Configured,Not Configured" }}</span>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-{{ api_keys_configured.anthropic|yesno:'check-circle-fill,x-circle-fill' }} text-{{ api_keys_configured.anthropic|yesno:'success,danger' }} me-2"></i>
+                                <span>Anthropic: {{ api_keys_configured.anthropic|yesno:"Configured,Not Configured" }}</span>
+                            </div>
+                            <hr class="my-2">
+                            <small class="text-muted">
+                                Configure API keys in your <code>.env</code> file or environment variables.
+                            </small>
+                        </div>
+                        
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Save Configuration
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Instructions -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> Setup Instructions</h6>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li class="mb-2">Configure your RAG settings above and save.</li>
+                        <li class="mb-2">Place your documents in <code>data/documents/[folder_name]/</code></li>
+                        <li class="mb-2">Run the indexing command:
+                            <pre class="mt-1"><code>python manage.py index_documents --folder [folder_name]</code></pre>
+                        </li>
+                        <li>Start chatting at the <a href="{% url 'chat:chat' %}">Chat page</a>!</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
