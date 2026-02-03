@@ -8,7 +8,7 @@ workflow and provides both sync and async operations.
 import logging
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
-from django.conf import settings
+from config import settings
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
@@ -55,14 +55,19 @@ class LangChainRAGService:
         self.rag_folder_name = self.config.get("rag_folder_name", "default")
         self.embedding_provider_name = self.config.get(
             "embedding_provider",
-            settings.djgent_settings.get("EMBEDDING_PROVIDER", "openai"),
+            getattr(settings, "djgent_settings", {}).get(
+                "EMBEDDING_PROVIDER", "gemini"
+            ),
         )
         self.llm_provider_name = self.config.get(
             "llm_provider",
-            settings.djgent_settings.get("LLM_PROVIDER", "openai"),
+            getattr(settings, "djgent_settings", {}).get(
+                "LLM_PROVIDER", "gemini"
+            ),
         )
         self.top_k = self.config.get(
-            "top_k", settings.djgent_settings.get("DEFAULT_TOP_K", 5)
+            "top_k",
+            getattr(settings, "djgent_settings", {}).get("DEFAULT_TOP_K", 5),
         )
 
         # Initialize components
@@ -87,7 +92,9 @@ class LangChainRAGService:
             # Get backend from config or djgent_settings
             backend = self.config.get(
                 "vector_store_backend",
-                settings.djgent_settings.get("VECTOR_STORE_BACKEND", "faiss"),
+                getattr(settings, "djgent_settings", {}).get(
+                    "VECTOR_STORE_BACKEND", "faiss"
+                ),
             )
             self.vector_store = VectorStoreFactory.get_vector_store(
                 backend=backend,
@@ -128,45 +135,41 @@ class LangChainRAGService:
 
     def _create_llm(self):
         """Create LLM based on provider configuration from djgent_settings."""
+        djgent = getattr(settings, "djgent_settings", {})
+
         if self.llm_provider_name == "openai":
-            api_key = settings.djgent_settings.get("LLM_API_KEY")
+            api_key = djgent.get("LLM_API_KEY")
             if not api_key:
                 raise ValueError(
                     "OpenAI API key is required. Set LLM_PROVIDER=openai and LLM_API_KEY in settings or .env file."
                 )
             return ChatOpenAI(
-                model_name=settings.djgent_settings.get(
-                    "LLM_MODEL", "gpt-4o-mini"
-                ),
+                model_name=djgent.get("LLM_MODEL", "gpt-4o-mini"),
                 openai_api_key=api_key,
                 temperature=0.7,
                 max_tokens=1000,
             )
 
         elif self.llm_provider_name == "gemini":
-            api_key = settings.djgent_settings.get("LLM_API_KEY")
+            api_key = djgent.get("LLM_API_KEY")
             if not api_key:
                 raise ValueError(
                     "Gemini API key is required. Set LLM_PROVIDER=gemini and LLM_API_KEY in settings or .env file."
                 )
             return ChatGoogleGenerativeAI(
-                model=settings.djgent_settings.get(
-                    "LLM_MODEL", "gemini-1.5-flash"
-                ),
+                model=djgent.get("LLM_MODEL", "gemini-1.5-flash"),
                 google_api_key=api_key,
                 temperature=0.7,
             )
 
         elif self.llm_provider_name == "anthropic":
-            api_key = settings.djgent_settings.get("LLM_API_KEY")
+            api_key = djgent.get("LLM_API_KEY")
             if not api_key:
                 raise ValueError(
                     "Anthropic API key is required. Set LLM_PROVIDER=anthropic and LLM_API_KEY in settings or .env file."
                 )
             return ChatAnthropic(
-                model_name=settings.djgent_settings.get(
-                    "LLM_MODEL", "claude-3-haiku-20240307"
-                ),
+                model_name=djgent.get("LLM_MODEL", "claude-3-haiku-20240307"),
                 anthropic_api_key=api_key,
                 max_tokens=1000,
             )

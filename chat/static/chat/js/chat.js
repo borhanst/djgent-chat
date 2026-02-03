@@ -27,11 +27,13 @@ document.addEventListener('DOMContentLoaded', function() {
 function initChatForm() {
     const chatForm = document.getElementById('chatForm');
     const messageInput = document.getElementById('messageInput');
+    const streamToggle = document.getElementById('streamToggle');
     
     if (chatForm) {
         chatForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            sendMessage();
+            const stream = streamToggle && streamToggle.checked;
+            sendMessage(stream);
         });
     }
     
@@ -40,7 +42,8 @@ function initChatForm() {
         messageInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                sendMessage();
+                const stream = streamToggle && streamToggle.checked;
+                sendMessage(stream);
             }
         });
     }
@@ -49,7 +52,7 @@ function initChatForm() {
 /**
  * Send a message to the chat API
  */
-async function sendMessage() {
+async function sendMessage(stream = false) {
     const messageInput = document.getElementById('messageInput');
     const message = messageInput.value.trim();
     
@@ -67,35 +70,10 @@ async function sendMessage() {
     setLoading(true);
     
     try {
-        // Send message to API
-        const response = await fetch('/chat/api/chat/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken()
-            },
-            body: JSON.stringify({
-                message: message,
-                session_id: currentSessionId
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            // Update session ID if changed
-            if (data.session_id) {
-                currentSessionId = data.session_id;
-            }
-            
-            // Add assistant message to UI
-            addMessageToUI('assistant', data.answer, data.sources);
-            
-            // Update vector count
-            updateVectorCount();
+        if (stream) {
+            await sendStreamingMessage(message);
         } else {
-            // Show error message
-            addMessageToUI('assistant', data.error || 'An error occurred. Please try again.');
+            await sendRegularMessage(message);
         }
     } catch (error) {
         console.error('Error sending message:', error);
@@ -103,6 +81,113 @@ async function sendMessage() {
     } finally {
         setLoading(false);
     }
+}
+
+/**
+ * Send a regular (non-streaming) message
+ */
+async function sendRegularMessage(message) {
+    const response = await fetch('/chat/api/chat/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            message: message,
+            session_id: currentSessionId,
+            stream: false
+        })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+        if (data.session_id) {
+            currentSessionId = data.session_id;
+        }
+        addMessageToUI('assistant', data.answer, data.sources);
+        updateVectorCount();
+    } else {
+        addMessageToUI('assistant', data.error || 'An error occurred. Please try again.');
+    }
+}
+
+/**
+ * Send a streaming message
+ */
+async function sendStreamingMessage(message) {
+    const response = await fetch('/chat/api/chat/stream/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            message: message,
+            session_id: currentSessionId
+        })
+    });
+    
+    if (!response.ok) {
+        const data = await response.json();
+        addMessageToUI('assistant', data.error || 'An error occurred. Please try again.');
+        return;
+    }
+    
+    // Create assistant message placeholder (streaming mode - no loading modal)
+    const assistantDiv = document.createElement('div');
+    assistantDiv.className = `message message-assistant message-new`;
+    
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    
+    assistantDiv.innerHTML = `
+        <div class="message-header">
+            <strong>Assistant:</strong>
+            <small class="text-muted">${timeStr}</small>
+        </div>
+        <div class="message-content"></div>
+    `;
+    
+    const chatMessages = document.getElementById('chatMessages');
+    chatMessages.appendChild(assistantDiv);
+    
+    // Remove empty state if present
+    const emptyState = chatMessages.querySelector('.empty-state');
+    if (emptyState) {
+        emptyState.remove();
+    }
+    
+    const contentDiv = assistantDiv.querySelector('.message-content');
+    let fullContent = '';
+    
+    // Handle streaming response
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        fullContent += chunk;
+        contentDiv.innerHTML = escapeHtml(fullContent);
+        scrollToBottom();
+    }
+    
+    // Update session ID if changed
+    const sessionIdEl = chatMessages.parentElement?.parentElement?.querySelector('.card-body code');
+    if (sessionIdEl && currentSessionId) {
+        sessionIdEl.textContent = currentSessionId;
+    }
+    
+    updateVectorCount();
+    
+    // Remove animation class
+    setTimeout(() => {
+        assistantDiv.classList.remove('message-new');
+    }, 300);
 }
 
 /**
@@ -165,7 +250,6 @@ function setLoading(loading) {
     isLoading = loading;
     const sendButton = document.getElementById('sendButton');
     const messageInput = document.getElementById('messageInput');
-    const loadingModal = document.getElementById('loadingModal');
     
     if (loading) {
         if (sendButton) {
@@ -175,10 +259,6 @@ function setLoading(loading) {
         if (messageInput) {
             messageInput.disabled = true;
         }
-        if (loadingModal) {
-            const modal = new bootstrap.Modal(loadingModal);
-            modal.show();
-        }
     } else {
         if (sendButton) {
             sendButton.disabled = false;
@@ -187,12 +267,6 @@ function setLoading(loading) {
         if (messageInput) {
             messageInput.disabled = false;
             messageInput.focus();
-        }
-        if (loadingModal) {
-            const modal = bootstrap.Modal.getInstance(loadingModal);
-            if (modal) {
-                modal.hide();
-            }
         }
     }
 }

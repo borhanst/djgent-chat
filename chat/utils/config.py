@@ -196,13 +196,11 @@ def get_env_config() -> Dict[str, Any]:
     djgent = get_djgent_settings()
     return {
         # LLM Configuration
-        "llm_provider": djgent.get(
-            "LLM_PROVIDER", os.getenv("LLM_PROVIDER", "openai")
-        ),
+        "llm_provider": "gemini",
         "llm_api_key": djgent.get("LLM_API_KEY", os.getenv("LLM_API_KEY")),
         # Embedding Configuration
         "embedding_provider": djgent.get(
-            "EMBEDDING_PROVIDER", os.getenv("EMBEDDING_PROVIDER", "openai")
+            "EMBEDDING_PROVIDER", os.getenv("EMBEDDING_PROVIDER", "gemini")
         ),
         "embedding_api_key": djgent.get(
             "EMBEDDING_API_KEY", os.getenv("EMBEDDING_API_KEY")
@@ -271,6 +269,7 @@ def get_rag_config() -> Dict[str, Any]:
 
     # Return default configuration from djgent_settings
     env_config = get_env_config()
+    print("env config", env_config)
     chunking = get_chunking_settings()
     return {
         "rag_folder_name": "default",

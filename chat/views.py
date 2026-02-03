@@ -13,6 +13,7 @@ import json
 import logging
 import uuid
 
+from asgiref.sync import sync_to_async
 from django.contrib import messages
 from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import redirect, render
@@ -98,9 +99,9 @@ def settings_view(request):
                 "rag_folder_name", "default"
             )
             config.embedding_provider = request.POST.get(
-                "embedding_provider", "openai"
+                "embedding_provider", "gemini"
             )
-            config.llm_provider = request.POST.get("llm_provider", "openai")
+            config.llm_provider = request.POST.get("llm_provider", "gemini")
             config.chunk_size = int(request.POST.get("chunk_size", 1000))
             config.chunk_overlap = int(request.POST.get("chunk_overlap", 200))
             config.top_k = int(request.POST.get("top_k", 5))
@@ -110,9 +111,9 @@ def settings_view(request):
             RAGConfiguration.objects.create(
                 rag_folder_name=request.POST.get("rag_folder_name", "default"),
                 embedding_provider=request.POST.get(
-                    "embedding_provider", "openai"
+                    "embedding_provider", "gemini"
                 ),
-                llm_provider=request.POST.get("llm_provider", "openai"),
+                llm_provider=request.POST.get("llm_provider", "gemini"),
                 chunk_size=int(request.POST.get("chunk_size", 1000)),
                 chunk_overlap=int(request.POST.get("chunk_overlap", 200)),
                 top_k=int(request.POST.get("top_k", 5)),
@@ -242,9 +243,10 @@ async def chat_api_async(request):
             ChatMessage.create_user_message, session_uuid, user_message
         )
 
-        # Get RAG service
-        config = get_rag_config()
-
+        # Get RAG config (wrap sync call with sync_to_async for async context)
+        config = await sync_to_async(get_rag_config)()
+        print("=" * 30)
+        print(config)
         if use_langchain:
             rag_service = get_langchain_rag_service(config)
         else:
@@ -295,6 +297,63 @@ async def chat_api_async(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+@csrf_exempt
+@require_http_methods(["POST"])
+async def chat_api_stream(request):
+    """
+    API endpoint for streaming chat messages.
+
+    Supports server-sent events (SSE) for streaming responses.
+    """
+    try:
+        data = json.loads(request.body)
+        user_message = data.get("message", "").strip()
+        session_id = data.get("session_id")
+
+        if not user_message:
+            return JsonResponse({"error": "Message is required"}, status=400)
+
+        if not session_id:
+            session_id = request.session.get("chat_session_id")
+            if not session_id:
+                session_id = str(uuid.uuid4())
+                request.session["chat_session_id"] = session_id
+
+        session_uuid = uuid.UUID(session_id)
+
+        # Save user message asynchronously
+        await asyncio.to_thread(
+            ChatMessage.create_user_message, session_uuid, user_message
+        )
+
+        # Get RAG config (wrap sync call with sync_to_async for async context)
+        config = await sync_to_async(get_rag_config)()
+        rag_service = get_langchain_rag_service(config)
+
+        # Check if index is ready
+        if not rag_service.is_index_ready():
+            return JsonResponse(
+                {
+                    "error": "No documents indexed.",
+                    "answer": "I don't have any documents to search through. Please index some documents first.",
+                    "sources": [],
+                    "context": [],
+                },
+                status=400,
+            )
+
+        # Create streaming response
+        return _stream_response(
+            rag_service, user_message, session_id, session_uuid
+        )
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        logger.exception(f"Error in streaming chat API: {e}")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
 def _stream_response(
     rag_service, user_message: str, session_id: str, session_uuid
 ):
@@ -312,9 +371,38 @@ def _stream_response(
     """
 
     async def generate():
+        full_response = []
+        sources = []
+        context = []
+
         try:
             async for chunk in rag_service.astream(user_message, session_id):
+                # Check for metadata chunks (sources, context)
+                if chunk.startswith("{"):
+                    try:
+                        import json
+
+                        data = json.loads(chunk)
+                        if "sources" in data:
+                            sources = data["sources"]
+                        if "context" in data:
+                            context = data["context"]
+                    except:
+                        pass
+                else:
+                    full_response.append(chunk)
                 yield chunk
+
+            # Save assistant message after streaming completes
+            full_answer = "".join(full_response)
+            await asyncio.to_thread(
+                ChatMessage.create_assistant_message,
+                session_uuid,
+                full_answer,
+                context=context,
+                sources=sources,
+            )
+
         except Exception as e:
             logger.error(f"Error in streaming: {e}")
             yield f"Error: {str(e)}"

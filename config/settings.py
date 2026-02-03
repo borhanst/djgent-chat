@@ -141,7 +141,7 @@ djgent_settings = {
     "PINECONE_ENVIRONMENT": os.getenv("PINECONE_ENVIRONMENT", "us-east-1"),
     "PINECONE_API_KEY": os.getenv("PINECONE_API_KEY"),
     # LLM Configuration (choose one: 'openai', 'gemini', 'anthropic')
-    "LLM_PROVIDER": os.getenv("LLM_PROVIDER", "openai"),
+    "LLM_PROVIDER": os.getenv("LLM_PROVIDER", "gemini"),
     "LLM_API_KEY": os.getenv("LLM_API_KEY"),  # Auto-filled based on provider
     "LLM_MODEL": os.getenv(
         "LLM_MODEL", "gpt-4o-mini"
