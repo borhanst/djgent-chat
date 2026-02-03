@@ -9,10 +9,13 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
-import os
 
+import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -21,7 +24,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-s&*i&f(f*ri*0*(h0-36d(vf6ug3eg^jae+33zl$dd)&)1(vf@'
+SECRET_KEY = (
+    "django-insecure-s&*i&f(f*ri*0*(h0-36d(vf6ug3eg^jae+33zl$dd)&)1(vf@"
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -32,52 +37,52 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'chat',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "chat",
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'config.wsgi.application'
+WSGI_APPLICATION = "config.wsgi.application"
 
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 
@@ -87,16 +92,16 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -104,9 +109,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -116,27 +121,65 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
 STATICFILES_DIRS = [
-    BASE_DIR / 'chat' / 'static',
+    BASE_DIR / "chat" / "static",
 ]
 
 
-# RAG Configuration
-RAG_FAISS_INDEX_BASE_PATH = BASE_DIR / 'faiss_indexes'
-RAG_DOCUMENTS_BASE_PATH = BASE_DIR / 'data' / 'documents'
+# DJGent App Settings - Contains all chat/RAG application settings
+djgent_settings = {
+    # Paths
+    "BASE_DIR": str(BASE_DIR),
+    "RAG_FAISS_INDEX_BASE_PATH": str(BASE_DIR / "faiss_indexes"),
+    "RAG_DOCUMENTS_BASE_PATH": str(BASE_DIR / "data" / "documents"),
+    # Vector Store Configuration (choose one: 'faiss', 'chromadb', 'pinecone')
+    "VECTOR_STORE_BACKEND": os.getenv("VECTOR_STORE_BACKEND", "faiss"),
+    "CHROMADB_PERSIST_DIRECTORY": os.getenv(
+        "CHROMADB_PERSIST_DIRECTORY", str(BASE_DIR / "chromadb")
+    ),
+    "PINECONE_ENVIRONMENT": os.getenv("PINECONE_ENVIRONMENT", "us-east-1"),
+    "PINECONE_API_KEY": os.getenv("PINECONE_API_KEY"),
+    # LLM Configuration (choose one: 'openai', 'gemini', 'anthropic')
+    "LLM_PROVIDER": os.getenv("LLM_PROVIDER", "openai"),
+    "LLM_API_KEY": os.getenv("LLM_API_KEY"),  # Auto-filled based on provider
+    "LLM_MODEL": os.getenv(
+        "LLM_MODEL", "gpt-4o-mini"
+    ),  # Model name based on provider
+    # Embedding Configuration (choose one: 'openai', 'gemini', 'huggingface')
+    "EMBEDDING_PROVIDER": os.getenv("EMBEDDING_PROVIDER", "gemini"),
+    "EMBEDDING_API_KEY": os.getenv(
+        "EMBEDDING_API_KEY"
+    ),  # Auto-filled based on provider
+    "EMBEDDING_MODEL": os.getenv(
+        "EMBEDDING_MODEL"
+    ),  # Provider-specific default used if not set
+    "HUGGINGFACE_MODEL_NAME": os.getenv(
+        "HUGGINGFACE_MODEL_NAME", "all-MiniLM-L6-v2"
+    ),
+    # Chunking Configuration
+    "DEFAULT_CHUNK_SIZE": int(os.getenv("DEFAULT_CHUNK_SIZE", 1000)),
+    "DEFAULT_CHUNK_OVERLAP": int(os.getenv("DEFAULT_CHUNK_OVERLAP", 200)),
+    "DEFAULT_TOP_K": int(os.getenv("DEFAULT_TOP_K", 5)),
+}
 
-# LLM Configuration
-LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'openai')
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 
-# Embedding Configuration
-EMBEDDING_PROVIDER = os.getenv('EMBEDDING_PROVIDER', 'openai')
-HUGGINGFACE_MODEL_NAME = os.getenv('HUGGINGFACE_MODEL_NAME', 'all-MiniLM-L6-v2')
+# Auto-populate API keys based on provider selection
+def _populate_api_keys():
+    """Helper to populate API keys based on selected providers."""
+    provider = djgent_settings["LLM_PROVIDER"]
+    if provider == "openai" and not djgent_settings.get("LLM_API_KEY"):
+        djgent_settings["LLM_API_KEY"] = os.getenv("OPENAI_API_KEY")
+    elif provider == "gemini" and not djgent_settings.get("LLM_API_KEY"):
+        djgent_settings["LLM_API_KEY"] = os.getenv("GEMINI_API_KEY")
+    elif provider == "anthropic" and not djgent_settings.get("LLM_API_KEY"):
+        djgent_settings["LLM_API_KEY"] = os.getenv("ANTHROPIC_API_KEY")
 
-# Chunking Configuration
-DEFAULT_CHUNK_SIZE = int(os.getenv('DEFAULT_CHUNK_SIZE', 1000))
-DEFAULT_CHUNK_OVERLAP = int(os.getenv('DEFAULT_CHUNK_OVERLAP', 200))
-DEFAULT_TOP_K = int(os.getenv('DEFAULT_TOP_K', 5))
+    embedding_provider = djgent_settings["EMBEDDING_PROVIDER"]
+    if embedding_provider == "openai" and not djgent_settings.get(
+        "EMBEDDING_API_KEY"
+    ):
+        djgent_settings["EMBEDDING_API_KEY"] = os.getenv("OPENAI_API_KEY")
+
+
+_populate_api_keys()
